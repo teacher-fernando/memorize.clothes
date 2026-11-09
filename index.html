@@ -1,0 +1,1958 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Memory Dressing Room – 3D ESL Game</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js r128 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Google Fonts: Fredoka & Nunito for playful children's game typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Nunito', sans-serif;
+            background: #0f172a;
+        }
+        .font-title {
+            font-family: 'Fredoka', sans-serif;
+        }
+        #canvas-container {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        /* Playful 3D Toy Buttons */
+        .btn-toy {
+            transition: all 0.14s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.22), 0 8px 16px rgba(0, 0, 0, 0.18);
+        }
+        .btn-toy:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 0 rgba(0, 0, 0, 0.24), 0 12px 20px rgba(0, 0, 0, 0.22);
+        }
+        .btn-toy:active:not(:disabled) {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25), 0 3px 6px rgba(0, 0, 0, 0.15);
+        }
+        .btn-toy:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+        /* Glassmorphic Toy Panels */
+        .toy-panel {
+            background: rgba(255, 255, 255, 0.93);
+            backdrop-filter: blur(12px);
+            border: 4px solid #ffffff;
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.28), inset 0 2px 0 rgba(255,255,255,0.9);
+        }
+        /* Custom Scrollbar for Wardrobe & Comparison */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(226, 232, 240, 0.6);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 9999px;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.4); opacity: 0; }
+            80% { transform: scale(1.06); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop {
+            animation: popIn 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes pulseTimer {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.12); }
+        }
+        .timer-pulse {
+            animation: pulseTimer 0.65s infinite ease-in-out;
+        }
+        /* 3D Anchor Floating Badges */
+        .badge-3d {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            pointer-events: auto;
+            transition: transform 0.15s ease;
+        }
+        .badge-3d:hover {
+            transform: translate(-50%, -50%) scale(1.12);
+            z-index: 40;
+        }
+    </style>
+</head>
+<body class="relative select-none">
+
+    <!-- 3D SCENE CANVAS -->
+    <div id="canvas-container"></div>
+
+    <!-- 3D FLOATING FEEDBACK PINS OVERLAY -->
+    <div id="pins-overlay" class="absolute inset-0 pointer-events-none z-20 overflow-hidden"></div>
+
+    <!-- MINIMALIST BOOTH BADGES (LEFT & CENTER-RIGHT) -->
+    <div class="absolute top-4 left-5 z-20 pointer-events-none">
+        <div class="toy-panel rounded-full px-4 py-1.5 border-sky-400 bg-sky-50/90 flex items-center gap-2 shadow">
+            <i class="fa-solid fa-eye text-sky-600 text-sm"></i>
+            <span id="left-phase-pill" class="font-title font-bold text-xs text-sky-900 uppercase">ORIGINAL</span>
+        </div>
+    </div>
+
+    <div class="absolute top-4 left-[52%] z-20 pointer-events-none">
+        <div class="toy-panel rounded-full px-4 py-1.5 border-amber-400 bg-amber-50/90 flex items-center gap-2 shadow">
+            <i class="fa-solid fa-hand-pointer text-amber-600 text-sm"></i>
+            <span id="right-count-pill" class="font-title font-bold text-xs text-amber-900 uppercase">0</span>
+        </div>
+    </div>
+
+    <!-- RIGHT VERTICAL SIDEBAR HUD & WARDROBE -->
+    <aside class="absolute top-3 bottom-3 right-3 z-30 w-64 md:w-72 flex flex-col gap-2.5 pointer-events-none">
+
+        <!-- TOP utility & status card in right sidebar -->
+        <div class="toy-panel rounded-3xl p-3 border-sky-300 pointer-events-auto flex flex-col gap-2.5 shadow-xl">
+            <!-- Icon Action Row -->
+            <div class="flex items-center justify-between gap-1.5">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center text-white text-base shadow shrink-0" title="Memory Dressing Room">
+                    <i class="fa-solid fa-shirt"></i>
+                </div>
+
+                <div class="flex items-center gap-1.5">
+                    <button id="btn-lang-corner" class="btn-toy bg-gradient-to-b from-violet-500 to-purple-600 text-white w-10 h-10 rounded-xl flex items-center justify-center text-base border-2 border-violet-300" title="Speaking Practice & Sentences">
+                        <i class="fa-solid fa-comment-dots"></i>
+                    </button>
+
+                    <button id="btn-sound" class="btn-toy bg-gradient-to-b from-emerald-400 to-emerald-600 text-white w-10 h-10 rounded-xl flex items-center justify-center text-base border-2 border-emerald-200" title="Sound ON/OFF">
+                        <i id="icon-sound" class="fa-solid fa-volume-high"></i>
+                    </button>
+
+                    <button id="btn-fullscreen" class="btn-toy bg-gradient-to-b from-sky-400 to-sky-600 text-white w-10 h-10 rounded-xl flex items-center justify-center text-base border-2 border-sky-200" title="Fullscreen">
+                        <i class="fa-solid fa-expand"></i>
+                    </button>
+
+                    <button id="btn-settings" class="btn-toy bg-gradient-to-b from-slate-600 to-slate-800 text-white w-10 h-10 rounded-xl flex items-center justify-center text-base border-2 border-slate-400" title="Teacher Settings">
+                        <i class="fa-solid fa-gear"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Phase Indicator + Timer Row -->
+            <div class="flex items-center justify-between gap-2 bg-slate-100/90 rounded-2xl px-3 py-2 border-2 border-slate-200">
+                <div id="instruction-banner" class="flex items-center gap-2">
+                    <span id="phase-dot" class="w-3 h-3 rounded-full bg-emerald-500 animate-ping shrink-0"></span>
+                    <span id="instruction-text" class="font-title text-sm md:text-base font-bold text-slate-800 tracking-wide">
+                        MEMORIZE!
+                    </span>
+                </div>
+
+                <div id="timer-box" class="flex items-center gap-1.5 bg-rose-50 border-2 border-rose-300 rounded-xl px-2.5 py-0.5">
+                    <i class="fa-solid fa-stopwatch text-rose-500 text-sm"></i>
+                    <span id="timer-display" class="font-title text-xl font-bold text-rose-600 min-w-[1.5ch] text-center">
+                        15
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- MEMORIZE PHASE READY CONTROL (IN SIDEBAR) -->
+        <div id="memorize-bottom-bar" class="toy-panel rounded-3xl p-4 border-amber-300 pointer-events-auto flex flex-col items-center justify-center gap-3 text-center shadow-xl">
+            <div class="w-14 h-14 rounded-2xl bg-amber-100 text-amber-500 flex items-center justify-center text-3xl">
+                <i class="fa-solid fa-brain"></i>
+            </div>
+            <p class="font-title text-sm font-bold text-slate-600">
+                Look closely at the clothes and their single adjective!
+            </p>
+            <button id="btn-ready-now" class="btn-toy w-full bg-gradient-to-b from-amber-400 to-orange-500 text-white font-title font-bold py-3 rounded-2xl text-lg border-2 border-amber-200 flex items-center justify-center gap-2 shadow-lg">
+                <i class="fa-solid fa-bolt"></i>
+                <span>READY!</span>
+            </button>
+        </div>
+
+        <!-- RECONSTRUCTION PHASE: VERTICAL WARDROBE DOCK (IN SIDEBAR) -->
+        <section id="wardrobe-dock" class="toy-panel rounded-3xl p-3 border-sky-300 bg-white/95 shadow-2xl pointer-events-auto hidden flex-1 flex flex-col justify-between gap-2 overflow-y-auto animate-pop">
+            <!-- 1. 9 ICONIC CLOTHING BUTTONS -->
+            <div class="bg-slate-100/80 rounded-2xl p-2 border-2 border-slate-200">
+                <div class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1.5 px-1 flex items-center justify-between">
+                    <span>1. CLOTHING</span>
+                    <span id="selected-item-badge" class="text-sky-600 font-bold">SHIRT</span>
+                </div>
+                <div id="clothing-grid" class="grid grid-cols-3 gap-1.5">
+                    <!-- Dynamically populated 9 iconic clothing buttons -->
+                </div>
+            </div>
+
+            <!-- 2. SINGLE ADJECTIVE SELECTOR (ONLY 1 ADJECTIVE PER CLOTHING ITEM) -->
+            <div class="bg-slate-100/80 rounded-2xl p-2 border-2 border-slate-200 flex flex-col gap-1.5">
+                <div class="text-[10px] font-black uppercase tracking-wider text-slate-400 px-1 flex items-center justify-between">
+                    <span>2. ONE ADJECTIVE</span>
+                    <span id="selected-adj-badge" class="text-purple-600 font-bold">BIG</span>
+                </div>
+
+                <!-- Size Pair: BIG / SMALL -->
+                <div id="adj-row-size" class="grid grid-cols-2 gap-1.5">
+                    <button data-adj-val="big" class="adj-btn py-2 px-2 rounded-xl font-title font-bold text-xs border-2 transition flex items-center justify-center gap-1.5" title="MEGA BIG!">
+                        <i class="fa-solid fa-maximize text-sm"></i>
+                        <span>BIG</span>
+                    </button>
+                    <button data-adj-val="small" class="adj-btn py-2 px-2 rounded-xl font-title font-bold text-xs border-2 transition flex items-center justify-center gap-1.5" title="TINY SMALL!">
+                        <i class="fa-solid fa-minimize text-xs"></i>
+                        <span>SMALL</span>
+                    </button>
+                </div>
+
+                <!-- Length Pair: LONG / SHORT -->
+                <div id="adj-row-length" class="grid grid-cols-2 gap-1.5">
+                    <button data-adj-val="long" class="adj-btn py-2 px-2 rounded-xl font-title font-bold text-xs border-2 transition flex items-center justify-center gap-1.5" title="SUPER LONG!">
+                        <i class="fa-solid fa-arrows-up-down text-sm"></i>
+                        <span>LONG</span>
+                    </button>
+                    <button data-adj-val="short" class="adj-btn py-2 px-2 rounded-xl font-title font-bold text-xs border-2 transition flex items-center justify-center gap-1.5" title="MINI SHORT!">
+                        <i class="fa-solid fa-compress text-xs"></i>
+                        <span>SHORT</span>
+                    </button>
+                </div>
+
+                <!-- Condition Pair: NEW / OLD -->
+                <div id="adj-row-condition" class="grid grid-cols-2 gap-1.5">
+                    <button data-adj-val="new" class="adj-btn py-2 px-2 rounded-xl font-title font-bold text-xs border-2 transition flex items-center justify-center gap-1.5" title="SHINY NEW!">
+                        <i class="fa-solid fa-wand-magic-sparkles text-sm"></i>
+                        <span>NEW</span>
+                    </button>
+                    <button data-adj-val="old" class="adj-btn py-2 px-2 rounded-xl font-title font-bold text-xs border-2 transition flex items-center justify-center gap-1.5" title="PATCHED OLD!">
+                        <i class="fa-solid fa-bandage text-sm"></i>
+                        <span>OLD</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3. ACTION BUTTONS -->
+            <div class="flex flex-col gap-2 pt-1">
+                <div class="flex items-center gap-1.5">
+                    <button id="btn-remove-item" class="btn-toy flex-1 bg-gradient-to-b from-rose-500 to-rose-600 text-white h-10 rounded-xl text-sm border-2 border-rose-300 flex items-center justify-center gap-1.5 font-title font-bold" title="Remove Selected Item">
+                        <i class="fa-solid fa-trash-can"></i>
+                        <span>REMOVE</span>
+                    </button>
+
+                    <button id="btn-clear-outfit" class="btn-toy bg-gradient-to-b from-slate-400 to-slate-500 text-white w-10 h-10 rounded-xl text-sm border-2 border-slate-300 flex items-center justify-center" title="Reset All Clothes">
+                        <i class="fa-solid fa-rotate-left"></i>
+                    </button>
+
+                    <button id="btn-quick-sentence" class="btn-toy bg-gradient-to-b from-violet-500 to-purple-600 text-white w-10 h-10 rounded-xl text-sm border-2 border-violet-300 flex items-center justify-center" title="Show Speaking Sentence">
+                        <i class="fa-solid fa-comment-dots"></i>
+                    </button>
+                </div>
+
+                <button id="btn-finish" class="btn-toy w-full bg-gradient-to-b from-emerald-400 via-emerald-500 to-green-600 text-white font-title font-bold h-12 rounded-2xl text-lg border-2 border-emerald-200 flex items-center justify-center gap-2 tracking-wide shadow-lg">
+                    <i class="fa-solid fa-check-double"></i>
+                    <span>FINISH!</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- FEEDBACK & COMPARISON PANEL (IN RIGHT SIDEBAR) -->
+        <section id="feedback-dock" class="toy-panel rounded-3xl p-3 border-emerald-400 bg-white/95 shadow-2xl pointer-events-auto hidden flex-1 flex flex-col justify-between gap-2 overflow-hidden animate-pop">
+            <div class="flex items-center gap-2.5 pb-2 border-b-2 border-slate-100">
+                <div id="feedback-badge-icon" class="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center text-xl shadow shrink-0">
+                    <i class="fa-solid fa-trophy"></i>
+                </div>
+                <div>
+                    <h2 id="feedback-headline" class="font-title text-base font-bold text-emerald-700 leading-tight">
+                        PERFECT OUTFIT!
+                    </h2>
+                    <p id="feedback-subtext" class="text-[11px] font-extrabold text-slate-500 leading-tight">
+                        Check each item &amp; adjective!
+                    </p>
+                </div>
+            </div>
+
+            <!-- Detailed Attribute Comparison Cards List (Vertical Scroll) -->
+            <div id="comparison-cards-container" class="flex-1 flex flex-col gap-2 overflow-y-auto pr-1">
+                <!-- Populated dynamically with item + single adjective Check/X breakdown -->
+            </div>
+
+            <div class="flex flex-col gap-2 pt-1 border-t-2 border-slate-100">
+                <button id="btn-feedback-sentences" class="btn-toy w-full bg-gradient-to-b from-violet-500 to-purple-600 text-white font-title font-bold py-2 rounded-xl text-xs border-2 border-violet-300 flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-volume-high"></i>
+                    <span>SHOW SENTENCES</span>
+                </button>
+
+                <button id="btn-next-outfit" class="btn-toy w-full bg-gradient-to-b from-amber-400 via-orange-500 to-orange-600 text-white font-title font-bold py-3 rounded-2xl text-base border-2 border-amber-200 flex items-center justify-center gap-2 shadow-xl">
+                    <span>NEXT OUTFIT!</span>
+                    <i class="fa-solid fa-forward-step"></i>
+                </button>
+            </div>
+        </section>
+
+    </aside>
+
+    <!-- LANGUAGE CORNER DRAWER / SPEAKING PRACTICE PANEL -->
+    <div id="lang-corner-panel" class="absolute top-16 left-5 z-30 w-[92%] max-w-2xl pointer-events-auto hidden animate-pop">
+        <div class="toy-panel rounded-3xl p-4 border-violet-400 bg-gradient-to-b from-violet-50/95 to-white shadow-2xl">
+            <div class="flex items-center justify-between border-b-2 border-violet-100 pb-2.5 mb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-violet-600 text-white flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-microphone-lines"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-title text-lg font-bold text-violet-950 leading-none">ESL SPEAKING PRACTICE CORNER</h2>
+                        <p class="text-xs font-extrabold text-violet-600">Teacher Question: <span class="italic">"What is the model wearing?"</span></p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="btn-show-sentence" class="btn-toy bg-gradient-to-b from-amber-400 to-orange-500 text-white font-title font-bold px-4 py-1.5 rounded-xl text-sm border-2 border-amber-200 flex items-center gap-1.5">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        <span>SHOW SENTENCE</span>
+                    </button>
+                    <button id="btn-close-lang" class="w-8 h-8 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 flex items-center justify-center font-bold">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Grammar Pattern Cards (No Colors, Only Single Adjective + Clothing Item) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                <div class="bg-sky-50 border-2 border-sky-200 rounded-2xl p-2.5">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-black uppercase px-2 py-0.5 rounded-md bg-sky-600 text-white">SINGULAR (1 item)</span>
+                        <span class="text-xs font-bold text-sky-700">hat, shirt, sweater, skirt</span>
+                    </div>
+                    <p class="font-title text-sm md:text-base font-bold text-slate-800">
+                        "It's a / an <span class="text-purple-600">[adjective]</span> <span class="text-sky-700">[clothing item]</span>."
+                    </p>
+                    <p class="text-xs font-bold text-slate-500 mt-0.5">Example: <span class="text-slate-700">"It's a big shirt."</span> / <span class="text-slate-700">"It's an old hat."</span></p>
+                </div>
+
+                <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-2.5">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-black uppercase px-2 py-0.5 rounded-md bg-emerald-600 text-white">PLURAL (Pairs)</span>
+                        <span class="text-xs font-bold text-emerald-700">pants, shoes, sneakers</span>
+                    </div>
+                    <p class="font-title text-sm md:text-base font-bold text-slate-800">
+                        "They're <span class="text-purple-600">[adjective]</span> <span class="text-emerald-700">[clothing item]</span>."
+                    </p>
+                    <p class="text-xs font-bold text-slate-500 mt-0.5">Example: <span class="text-slate-700">"They're new shoes."</span> / <span class="text-slate-700">"They're long pants."</span></p>
+                </div>
+            </div>
+                <!-- Number of Clothing Items per Round (2 to 7) -->
+                <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="font-title font-bold text-slate-800">
+                            <i class="fa-solid fa-layer-group text-sky-500 mr-1.5"></i> Clothing Items Per Round
+                        </label>
+                        <span id="label-item-count" class="font-title font-bold text-lg text-sky-600">4 Items</span>
+                    </div>
+                    <input id="input-item-count" type="range" min="2" max="7" value="4" class="w-full accent-sky-500 cursor-pointer">
+                    <div class="flex justify-between text-xs font-bold text-slate-400 mt-1">
+                        <span>2 Items</span>
+                        <span>3</span>
+                        <span>4 (Default)</span>
+                        <span>5</span>
+                        <span>6</span>
+                        <span>7 (Max)</span>
+                    </div>
+                </div>
+                <button id="btn-All-sentences" class="btn-toy bg-white/20 hover:bg-white/30 text-white text-xs font-black px-3 py-2 rounded-xl border border-white/40 shrink-0">
+                    SHOW ALL OUTFIT SENTENCES
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TEACHER SETTINGS MODAL -->
+    <div id="settings-modal" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="toy-panel rounded-3xl max-w-xl w-full p-6 border-sky-400 bg-white animate-pop">
+            <div class="flex items-center justify-between border-b-2 border-slate-100 pb-3 mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-slate-800 text-white flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-sliders"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-title text-2xl font-bold text-slate-800">TEACHER SETTINGS</h2>
+                        <p class="text-xs font-bold text-slate-500">Classroom configuration (persists across all rounds)</p>
+                    </div>
+                </div>
+                <button id="btn-close-settings" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4 text-sm md:text-base">
+                <!-- Memorization Timer -->
+                <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                    <label class="font-title font-bold text-slate-800 block mb-2">
+                        <i class="fa-solid fa-clock text-rose-500 mr-1.5"></i> Memorization Timer (Seconds)
+                    </label>
+                    <div class="flex flex-wrap gap-2 mb-2">
+                        <button data-time="5" class="time-preset-btn px-3.5 py-1.5 rounded-xl font-bold border-2">5s</button>
+                        <button data-time="10" class="time-preset-btn px-3.5 py-1.5 rounded-xl font-bold border-2">10s</button>
+                        <button data-time="15" class="time-preset-btn px-3.5 py-1.5 rounded-xl font-bold border-2">15s</button>
+                        <button data-time="20" class="time-preset-btn px-3.5 py-1.5 rounded-xl font-bold border-2">20s</button>
+                        <button data-time="30" class="time-preset-btn px-3.5 py-1.5 rounded-xl font-bold border-2">30s</button>
+                    </div>
+                    <div class="flex items-center gap-2 mt-2">
+                        <span class="text-xs font-extrabold text-slate-500 uppercase">Custom Timer (sec):</span>
+                        <input id="input-custom-timer" type="number" min="3" max="120" value="15" class="w-24 px-3 py-1 rounded-xl border-2 border-slate-300 font-title font-bold text-slate-800 text-center">
+                    </div>
+                </div>
+
+                <!-- Number of Clothing Items per Round (3 to 9) -->
+                <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="font-title font-bold text-slate-800">
+                            <i class="fa-solid fa-layer-group text-sky-500 mr-1.5"></i> Clothing Items Per Round
+                        </label>
+                        <span id="label-item-count" class="font-title font-bold text-lg text-sky-600">5 Items</span>
+                    </div>
+                    <input id="input-item-count" type="range" min="3" max="9" value="5" class="w-full accent-sky-500 cursor-pointer">
+                    <div class="flex justify-between text-xs font-bold text-slate-400 mt-1">
+                        <span>3 Items</span>
+                        <span>4</span>
+                        <span>5 (Default)</span>
+                        <span>6</span>
+                        <span>7</span>
+                        <span>8</span>
+                        <span>9 (Max)</span>
+                    </div>
+                </div>
+
+                <!-- Toggles -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label class="flex items-center justify-between bg-slate-50 p-3 rounded-2xl border border-slate-200 cursor-pointer">
+                        <span class="font-bold text-slate-700">Randomize Adjectives</span>
+                        <input id="toggle-random-adjectives" type="checkbox" checked class="w-5 h-5 accent-emerald-500 rounded">
+                    </label>
+
+                    <label class="flex items-center justify-between bg-slate-50 p-3 rounded-2xl border border-slate-200 cursor-pointer">
+                        <span class="font-bold text-slate-700">Sound Effects</span>
+                        <input id="toggle-sound" type="checkbox" checked class="w-5 h-5 accent-emerald-500 rounded">
+                    </label>
+
+                    <label class="flex items-center justify-between bg-slate-50 p-3 rounded-2xl border border-slate-200 cursor-pointer sm:col-span-2">
+                        <span class="font-bold text-slate-700">Reveal Original on Finish</span>
+                        <input id="toggle-reveal-finish" type="checkbox" checked class="w-5 h-5 accent-emerald-500 rounded">
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 mt-6 pt-3 border-t-2 border-slate-100">
+                <button id="btn-save-return" class="btn-toy bg-gradient-to-b from-sky-400 to-blue-600 text-white font-title font-bold px-6 py-2.5 rounded-2xl text-base border-2 border-sky-200">
+                    SAVE &amp; RETURN TO GAME
+                </button>
+                <button id="btn-save-new-round" class="btn-toy bg-gradient-to-b from-emerald-400 to-green-600 text-white font-title font-bold px-6 py-2.5 rounded-2xl text-base border-2 border-emerald-200">
+                    APPLY &amp; NEW ROUND
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /********************************************************************
+         * 1. VOCABULARY, SIGNATURE DEFAULT COLORS, SINGLE ADJECTIVE & GRAMMAR
+         ********************************************************************/
+        const CLOTHING_CATALOG = [
+            {
+                id: 'hat',
+                name: 'Hat',
+                plural: false,
+                icon: 'fa-hat-cowboy',
+                slot: 'head',
+                defaultColor: 'purple',
+                allowedAdjectives: ['big', 'small', 'new', 'old'],
+                anchorY: 2.35
+            },
+            {
+                id: 'shirt',
+                name: 'Shirt',
+                plural: false,
+                icon: 'fa-shirt',
+                slot: 'torso',
+                defaultColor: 'red',
+                allowedAdjectives: ['big', 'small', 'new', 'old'],
+                anchorY: 0.45
+            },
+            {
+                id: 'sweater',
+                name: 'Sweater',
+                plural: false,
+                icon: 'fa-vest-patches',
+                slot: 'torso',
+                defaultColor: 'green',
+                allowedAdjectives: ['big', 'small', 'new', 'old'],
+                anchorY: 0.45
+            },
+            {
+                id: 'pants',
+                name: 'Pants',
+                plural: true,
+                icon: 'fa-person-walking',
+                slot: 'legs',
+                defaultColor: 'blue',
+                allowedAdjectives: ['big', 'small', 'long', 'short', 'new', 'old'],
+                anchorY: -0.55
+            },
+            {
+                id: 'skirt',
+                name: 'Skirt',
+                plural: false,
+                icon: 'fa-bell',
+                slot: 'legs',
+                defaultColor: 'pink',
+                allowedAdjectives: ['big', 'small', 'long', 'short', 'new', 'old'],
+                anchorY: -0.35
+            },
+            {
+                id: 'shoes',
+                name: 'Shoes',
+                plural: true,
+                icon: 'fa-shoe-prints',
+                slot: 'feet',
+                defaultColor: 'brown',
+                allowedAdjectives: ['big', 'small', 'new', 'old'],
+                anchorY: -1.18
+            },
+            {
+                id: 'sneakers',
+                name: 'Sneakers',
+                plural: true,
+                icon: 'fa-person-running',
+                slot: 'feet',
+                defaultColor: 'yellow',
+                allowedAdjectives: ['big', 'small', 'new', 'old'],
+                anchorY: -1.18
+            }
+        ];
+
+        const COLOR_CATALOG = [
+            { id: 'red',    name: 'Red',    hex: '#ef4444', threeHex: 0xef4444 },
+            { id: 'blue',   name: 'Blue',   hex: '#2563eb', threeHex: 0x2563eb },
+            { id: 'yellow', name: 'Yellow', hex: '#facc15', threeHex: 0xfacc15 },
+            { id: 'green',  name: 'Green',  hex: '#16a34a', threeHex: 0x16a34a },
+            { id: 'pink',   name: 'Pink',   hex: '#f472b6', threeHex: 0xf472b6 },
+            { id: 'purple', name: 'Purple', hex: '#9333ea', threeHex: 0x9333ea },
+            { id: 'orange', name: 'Orange', hex: '#f97316', threeHex: 0xf97316 },
+            { id: 'black',  name: 'Black',  hex: '#1e293b', threeHex: 0x262f3f },
+            { id: 'white',  name: 'White',  hex: '#f8fafc', threeHex: 0xf8fafc },
+            { id: 'brown',  name: 'Brown',  hex: '#854d0e', threeHex: 0x854d0e }
+        ];
+
+        /********************************************************************
+         * 2. SYNTHESIZED WEB AUDIO SOUND ENGINE (NO EXTERNAL ASSETS NEEDED)
+         ********************************************************************/
+        class SoundEffects {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+            playTone(freq, type = 'sine', duration = 0.15, delay = 0, gainVal = 0.12) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime + delay;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, now);
+                gain.gain.setValueAtTime(gainVal, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + duration);
+            }
+            playStartRound() {
+                this.playTone(523.25, 'triangle', 0.14, 0, 0.14);
+                this.playTone(659.25, 'triangle', 0.14, 0.1, 0.14);
+                this.playTone(783.99, 'triangle', 0.22, 0.2, 0.16);
+            }
+            playTick(urgent = false) {
+                this.playTone(urgent ? 880 : 620, 'sine', 0.07, 0, urgent ? 0.14 : 0.08);
+            }
+            playCurtain() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(240, now);
+                osc.frequency.exponentialRampToValueAtTime(520, now + 0.35);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.38);
+            }
+            playEquip() {
+                this.playTone(587.33, 'triangle', 0.1, 0, 0.13);
+                this.playTone(880, 'sine', 0.14, 0.06, 0.13);
+            }
+            playRemove() {
+                this.playTone(440, 'sine', 0.1, 0, 0.1);
+                this.playTone(311.13, 'sine', 0.14, 0.07, 0.1);
+            }
+            playCelebration() {
+                const notes = [523.25, 659.25, 783.99, 1046.5];
+                notes.forEach((n, i) => this.playTone(n, 'triangle', 0.22, i * 0.09, 0.16));
+            }
+            playGoodTry() {
+                this.playTone(440, 'triangle', 0.16, 0, 0.12);
+                this.playTone(523.25, 'triangle', 0.24, 0.12, 0.12);
+            }
+        }
+        const sfx = new SoundEffects();
+
+        /********************************************************************
+         * 3. GAME STATE & TEACHER SETTINGS
+         ********************************************************************/
+        const teacherSettings = {
+            memorizeTime: 15,
+            itemsPerRound: 4,
+            randomAdjectives: true,
+            soundEnabled: true,
+            revealOnFinish: true
+        };
+
+        const gameState = {
+            phase: 'MEMORIZE', // 'MEMORIZE' | 'RECONSTRUCT' | 'FEEDBACK'
+            timerRemaining: 15,
+            timerInterval: null,
+            originalOutfit: {}, // keyed by item.id -> { id, adjective }
+            playerOutfit: {},   // keyed by item.id -> { id, adjective }
+            lastOutfitSignature: '',
+            selectedItemId: 'shirt',
+            selectedAdjective: 'big' // ONLY ONE adjective per item ('big'|'small'|'long'|'short'|'new'|'old')
+        };
+
+        /********************************************************************
+         * 4. THREE.JS 3D SCENE, BOOTH, CURTAIN & ASTRO-INSPIRED BOT MODELS
+         ********************************************************************/
+        let scene, camera, renderer, clock;
+        let leftCharacter, rightCharacter;
+        let leftCurtainSystem;
+        let confettiParticles = [];
+
+        const LEFT_BOOTH_X = -3.75;
+        const RIGHT_BOOTH_X = 1.65;
+
+        // Procedural canvas textures for "OLD" worn fabric/patches vs "NEW" sleek surface
+        const wornTextureCache = {};
+        function getOldConditionTexture(hexString) {
+            if (wornTextureCache[hexString]) return wornTextureCache[hexString];
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+
+            // Desaturated, weathered muddy base color for extreme "OLD" visual contrast
+            ctx.fillStyle = hexString;
+            ctx.fillRect(0, 0, 256, 256);
+            ctx.fillStyle = 'rgba(120, 113, 108, 0.48)';
+            ctx.fillRect(0, 0, 256, 256);
+
+            // Rough burlap cross-hatching and dirt smudges
+            ctx.fillStyle = 'rgba(68, 64, 60, 0.28)';
+            for (let i = 0; i < 18; i++) {
+                ctx.beginPath();
+                ctx.arc((i * 47) % 256, (i * 83) % 256, 14 + (i % 4) * 6, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.strokeStyle = 'rgba(41, 37, 36, 0.38)';
+            ctx.lineWidth = 3;
+            for (let i = 0; i < 24; i++) {
+                const y = (i * 11) % 256;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(256, y);
+                ctx.stroke();
+            }
+
+            // Big caricature stitched patches so "OLD" is immediately recognizable from across the classroom
+            const patches = [
+                { x: 24, y: 30, w: 76, h: 60 },
+                { x: 136, y: 125, w: 84, h: 68 }
+            ];
+            patches.forEach(p => {
+                ctx.fillStyle = '#d6bfa3';
+                ctx.fillRect(p.x, p.y, p.w, p.h);
+                ctx.strokeStyle = '#292524';
+                ctx.lineWidth = 5;
+                ctx.strokeRect(p.x, p.y, p.w, p.h);
+
+                // Big X-stitches around patch edges
+                ctx.strokeStyle = '#1c1917';
+                ctx.lineWidth = 3;
+                for (let sx = p.x + 10; sx < p.x + p.w - 4; sx += 14) {
+                    ctx.beginPath();
+                    ctx.moveTo(sx - 5, p.y - 6);
+                    ctx.lineTo(sx + 5, p.y + 6);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(sx - 5, p.y + p.h - 6);
+                    ctx.lineTo(sx + 5, p.y + p.h + 6);
+                    ctx.stroke();
+                }
+            });
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            wornTextureCache[hexString] = tex;
+            return tex;
+        }
+
+        // Cel-Shading / Cartoon 4-step gradient map for authentic Toon Shading
+        let cartoonGradientMap = null;
+        function getCartoonGradientMap() {
+            if (cartoonGradientMap) return cartoonGradientMap;
+            const canvas = document.createElement('canvas');
+            canvas.width = 4;
+            canvas.height = 1;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#52525b';
+            ctx.fillRect(0, 0, 1, 1);
+            ctx.fillStyle = '#a1a1aa';
+            ctx.fillRect(1, 0, 1, 1);
+            ctx.fillStyle = '#e4e4e7';
+            ctx.fillRect(2, 0, 1, 1);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(3, 0, 1, 1);
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.minFilter = THREE.NearestFilter;
+            tex.magFilter = THREE.NearestFilter;
+            tex.generateMipmaps = false;
+            cartoonGradientMap = tex;
+            return tex;
+        }
+
+        function createCartoonOutline(geometry, scale = 1.055) {
+            const outlineMat = new THREE.MeshBasicMaterial({
+                color: 0x0f172a,
+                side: THREE.BackSide
+            });
+            const mesh = new THREE.Mesh(geometry, outlineMat);
+            mesh.scale.set(scale, scale, scale);
+            return mesh;
+        }
+
+        function createClothingMaterial(colorId, adj) {
+            const colorObj = COLOR_CATALOG.find(c => c.id === colorId) || COLOR_CATALOG[0];
+            if (adj === 'old') {
+                return new THREE.MeshToonMaterial({
+                    map: getOldConditionTexture(colorObj.hex),
+                    gradientMap: getCartoonGradientMap()
+                });
+            } else if (adj === 'new') {
+                // "NEW": Super vibrant cel-shaded material with bright sheen
+                return new THREE.MeshToonMaterial({
+                    color: colorObj.threeHex,
+                    gradientMap: getCartoonGradientMap(),
+                    emissive: colorObj.threeHex,
+                    emissiveIntensity: 0.18
+                });
+            } else {
+                // Clean Cartoon Cel-Shaded material
+                return new THREE.MeshToonMaterial({
+                    color: colorObj.threeHex,
+                    gradientMap: getCartoonGradientMap()
+                });
+            }
+        }
+
+        function createSingle4PointStarMesh(size, mat) {
+            const starGroup = new THREE.Group();
+            const vBeam = new THREE.Mesh(new THREE.OctahedronGeometry(size, 0), mat);
+            vBeam.scale.set(0.38, 1.55, 0.32);
+            const hBeam = new THREE.Mesh(new THREE.OctahedronGeometry(size, 0), mat);
+            hBeam.scale.set(1.55, 0.38, 0.32);
+            const core = new THREE.Mesh(new THREE.SphereGeometry(size * 0.35, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+            starGroup.add(vBeam, hBeam, core);
+            return starGroup;
+        }
+
+        function createSparkleBadgeGroup() {
+            // Animated "NEW" visual indicator: Multiple twinkling, pulsing & orbiting 3D cartoon stars!
+            const group = new THREE.Group();
+            group.userData.isAnimatedNewSparkle = true;
+
+            const goldMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+            constamberMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
+            const cyanMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe });
+
+            const sparkConfigs = [
+                { x: 0.0,   y: 0.05,  z: 0.08, size: 0.14, speed: 4.5, phase: 0.0,  mat: goldMat },
+                { x: -0.26, y: 0.22,  z: 0.04, size: 0.09, speed: 5.8, phase: 1.5,  mat: cyanMat },
+                { x: 0.28,  y: 0.16,  z: 0.05, size: 0.10, speed: 5.2, phase: 3.1,  mat: theamberMat = new THREE.MeshBasicMaterial({ color: 0xfde047 }) },
+                { x: -0.22, y: -0.18, z: 0.06, size: 0.08, speed: 6.4, phase: 4.2,  mat: goldMat },
+                { x: 0.24,  y: -0.16, z: 0.06, size: 0.09, speed: 4.9, phase: 2.3,  mat: cyanMat }
+            ];
+
+            group.userData.sparkleItems = [];
+
+            sparkConfigs.forEach(cfg => {
+                const star = createSingle4PointStarMesh(cfg.size, cfg.mat);
+                star.position.set(cfg.x, cfg.y, cfg.z);
+                star.userData = {
+                    baseX: cfg.x,
+                    baseY: cfg.y,
+                    baseZ: cfg.z,
+                    speed: cfg.speed,
+                    phase: cfg.phase
+                };
+                group.add(star);
+                group.userData.sparkleItems.push(star);
+            });
+
+            return group;
+        }
+
+        function createOldPatchBadgeGroup() {
+            // Exaggerated "OLD" visual indicator: Thick 3D Burlap Cross-Patch + Bandage X
+            const group = new THREE.Group();
+            const patchMat = new THREE.MeshStandardMaterial({
+                color: 0xc2a382,
+                roughness: 1.0
+            });
+            const stitchMat = new THREE.MeshBasicMaterial({ color: 0x1c1917 });
+            const bandMat = new THREE.MeshStandardMaterial({ color: 0xe7d5c0, roughness: 0.95 });
+
+            // Main chunky patch
+            const patch = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.25, 0.045), patchMat);
+            const border = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.29, 0.03), stitchMat);
+            border.position.z = -0.01;
+            group.add(patch, border);
+
+            // Big X Bandage across the patch
+            const cross1 = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.055, 0.055), stitchMat);
+            cross1.rotation.z = 0.55;
+            const cross2 = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.055, 0.055), bandMat);
+            cross2.rotation.z = -0.55;
+            group.add(cross1, cross2);
+
+            return group;
+        }
+
+        /********************************************************************
+         * 5. MODULAR 3D CHARACTER & CARICATURE ANATOMICAL CLOTHING MODELS
+         ********************************************************************/
+        class ToyBotCharacter {
+            constructor(xPos) {
+                this.root = new THREE.Group();
+                // Raised onto the top surface of the booth floor so shoes & sneakers are 100% clear and visible!
+                this.root.position.set(xPos, -0.36, 0.12);
+
+                this.bodyGroup = new THREE.Group();
+                this.root.add(this.bodyGroup);
+
+                this.clothingGroup = new THREE.Group();
+                this.bodyGroup.add(this.clothingGroup);
+
+                // Dedicated anatomical sleeve mounts attached directly to the arm pivots so sleeves fit and move seamlessly!
+                this.leftSleeveMount = new THREE.Group();
+                this.rightSleeveMount = new THREE.Group();
+
+                this.animatedNewBadges = [];
+                this.eyesMeshList = [];
+                this.footMeshes = [];
+                this.blinkTimer = Math.random() * 3;
+                this.reactionType = null; // 'happy' | 'wave'
+                this.reactionTime = 0;
+
+                this.buildBaseToyBot();
+            }
+
+            buildBaseToyBot() {
+                const gradMap = getCartoonGradientMap();
+                const whiteShellMat = new THREE.MeshToonMaterial({
+                    color: 0xffffff,
+                    gradientMap: gradMap
+                });
+                const pastelBlueAccentMat = new THREE.MeshToonMaterial({
+                    color: 0x38bdf8,
+                    gradientMap: gradMap
+                });
+                const darkVisorMat = new THREE.MeshStandardMaterial({
+                    color: 0x0f172a,
+                    roughness: 0.12,
+                    metalness: 0.2
+                });
+                const glowingEyeMat = new THREE.MeshBasicMaterial({
+                    color: 0x38bdf8
+                });
+                const cheekMat = new THREE.MeshBasicMaterial({
+                    color: 0xf472b6
+                });
+                const jointMat = new THREE.MeshToonMaterial({
+                    color: 0x94a3b8,
+                    gradientMap: gradMap
+                });
+
+                // 1. HEAD (Rounded cute capsule-sphere with glowing visor eyes & cartoon outline)
+                this.headGroup = new THREE.Group();
+                this.headGroup.position.set(0, 1.68, 0);
+                this.bodyGroup.add(this.headGroup);
+
+                const headGeo = new THREE.SphereGeometry(0.68, 32, 24);
+                const headSphere = new THREE.Mesh(headGeo, whiteShellMat);
+                headSphere.scale.set(1.08, 0.96, 0.98);
+                headSphere.castShadow = true;
+                const headOutline = createCartoonOutline(headGeo, 1.045);
+                headSphere.add(headOutline);
+                this.headGroup.add(headSphere);
+
+                // Ear muffs
+                const earGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.15, 20);
+                earGeo.rotateZ(Math.PI / 2);
+                const leftEar = new THREE.Mesh(earGeo, pastelBlueAccentMat);
+                leftEar.position.set(-0.74, 0, 0);
+                const rightEar = new THREE.Mesh(earGeo, pastelBlueAccentMat);
+                rightEar.position.set(0.74, 0, 0);
+                this.headGroup.add(leftEar, rightEar);
+
+                // Cute top antenna
+                const antStem = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.28, 12), jointMat);
+                antStem.position.set(0, 0.72, 0);
+                const antBulb = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 16), pastelBlueAccentMat);
+                antBulb.position.set(0, 0.88, 0);
+                this.headGroup.add(antStem, antBulb);
+
+                // Glossy Visor Faceplate
+                const visor = new THREE.Mesh(new THREE.SphereGeometry(0.56, 28, 20), darkVisorMat);
+                visor.scale.set(1.06, 0.75, 0.55);
+                visor.position.set(0, -0.02, 0.44);
+                this.headGroup.add(visor);
+
+                // Large expressive glowing eyes
+                const eyeGeo = new THREE.SphereGeometry(0.11, 16, 16);
+                eyeGeo.scale(0.85, 1.25, 0.3);
+                const leftEye = new THREE.Mesh(eyeGeo, glowingEyeMat);
+                leftEye.position.set(-0.22, 0.03, 0.72);
+                const rightEye = new THREE.Mesh(eyeGeo, glowingEyeMat);
+                rightEye.position.set(0.22, 0.03, 0.72);
+                this.headGroup.add(leftEye, rightEye);
+                this.eyesMeshList.push(leftEye, rightEye);
+
+                // Eye catchlights
+                const shineGeo = new THREE.SphereGeometry(0.032, 8, 8);
+                const shineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+                const leftShine = new THREE.Mesh(shineGeo, shineMat);
+                leftShine.position.set(-0.19, 0.09, 0.76);
+                const rightShine = new THREE.Mesh(shineGeo, shineMat);
+                rightShine.position.set(0.25, 0.09, 0.76);
+                this.headGroup.add(leftShine, rightShine);
+
+                // Rosy digital cheeks
+                const cheekGeo = new THREE.SphereGeometry(0.055, 12, 12);
+                cheekGeo.scale(1.3, 0.7, 0.3);
+                const leftCheek = new THREE.Mesh(cheekGeo, cheekMat);
+                leftCheek.position.set(-0.34, -0.12, 0.69);
+                const rightCheek = new THREE.Mesh(cheekGeo, cheekMat);
+                rightCheek.position.set(0.34, -0.12, 0.69);
+                this.headGroup.add(leftCheek, rightCheek);
+
+                // 2. NECK & SMOOTH ANATOMICAL TORSO
+                const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.24, 0.26, 18), jointMat);
+                neck.position.set(0, 1.0, 0);
+                this.bodyGroup.add(neck);
+
+                // Smooth pill-shaped torso so shirts, sweaters, pants & skirts hug the body naturally
+                const torsoGeo = new THREE.CylinderGeometry(0.45, 0.49, 0.88, 28);
+                const torso = new THREE.Mesh(torsoGeo, whiteShellMat);
+                torso.position.set(0, 0.46, 0);
+                torso.castShadow = true;
+                torso.add(createCartoonOutline(torsoGeo, 1.04));
+                this.bodyGroup.add(torso);
+
+                // Rounded shoulder dome cap on top of torso
+                const upperChestSphere = new THREE.Mesh(new THREE.SphereGeometry(0.45, 24, 16), whiteShellMat);
+                upperChestSphere.scale.set(1.06, 0.32, 0.96);
+                upperChestSphere.position.set(0, 0.88, 0);
+                this.bodyGroup.add(upperChestSphere);
+
+                const hipSphere = new THREE.Mesh(new THREE.SphereGeometry(0.49, 24, 16), whiteShellMat);
+                hipSphere.scale.set(1.0, 0.48, 0.96);
+                hipSphere.position.set(0, 0.0, 0);
+                this.bodyGroup.add(hipSphere);
+
+                // Chest core emblem
+                const coreRing = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.05, 20), pastelBlueAccentMat);
+                coreRing.rotation.x = Math.PI / 2;
+                coreRing.position.set(0, 0.56, 0.45);
+                this.bodyGroup.add(coreRing);
+
+                // 3. ARMS (With integrated sleeve mounts so shirt/sweater sleeves wrap around the actual arms!)
+                this.leftArmGroup = new THREE.Group();
+                this.leftArmGroup.position.set(-0.52, 0.82, 0);
+                this.rightArmGroup = new THREE.Group();
+                this.rightArmGroup.position.set(0.52, 0.82, 0);
+                this.bodyGroup.add(this.leftArmGroup, this.rightArmGroup);
+
+                const armGeo = new THREE.CylinderGeometry(0.13, 0.12, 0.66, 18);
+                const handGeo = new THREE.SphereGeometry(0.16, 16, 16);
+
+                // Left limb pivot tilted slightly outward
+                this.leftLimbPivot = new THREE.Group();
+                this.leftLimbPivot.rotation.z = -0.22;
+                const lShoulderBall = new THREE.Mesh(new THREE.SphereGeometry(0.135, 16, 16), jointMat);
+                const lArm = new THREE.Mesh(armGeo, whiteShellMat);
+                lArm.position.set(0, -0.33, 0);
+                lArm.add(createCartoonOutline(armGeo, 1.06));
+                const lHand = new THREE.Mesh(handGeo, pastelBlueAccentMat);
+                lHand.position.set(0, -0.68, 0);
+                lHand.add(createCartoonOutline(handGeo, 1.06));
+                this.leftLimbPivot.add(lShoulderBall, lArm, lHand, this.leftSleeveMount);
+                this.leftArmGroup.add(this.leftLimbPivot);
+
+                // Right limb pivot tilted slightly outward
+                this.rightLimbPivot = new THREE.Group();
+                this.rightLimbPivot.rotation.z = 0.22;
+                // 4. LEGS & FEET (Wider stance ±0.27 so pants, shoes, and sneakers are super clear and never collide)
+                const legGeo = new THREE.CylinderGeometry(0.145, 0.13, 0.94, 18);
+                const leftLeg = new THREE.Mesh(legGeo, whiteShellMat);
+                leftLeg.position.set(-0.27, -0.66, 0);
+                leftLeg.castShadow = true;
+                leftLeg.add(createCartoonOutline(legGeo, 1.05));
+                const rightLeg = new THREE.Mesh(legGeo, whiteShellMat);
+                rightLeg.position.set(0.27, -0.66, 0);
+                rightLeg.castShadow = true;
+                rightLeg.add(createCartoonOutline(legGeo, 1.05));
+                this.bodyGroup.add(leftLeg, rightLeg);
+
+                const footGeo = new THREE.SphereGeometry(0.165, 16, 16);
+                footGeo.scale(1, 0.62, 1.35);
+                const leftFoot = new THREE.Mesh(footGeo, jointMat);
+                leftFoot.position.set(-0.27, -1.22, 0.06);
+                const rightFoot = new THREE.Mesh(footGeo, jointMat);
+                rightFoot.position.set(0.27, -1.22, 0.06);
+                this.bodyGroup.add(leftFoot, rightFoot);
+                this.footMeshes = [leftFoot, rightFoot];
+            }
+
+            clearClothes() {
+                while (this.clothingGroup.children.length > 0) {
+                    this.clothingGroup.remove(this.clothingGroup.children[0]);
+                }
+                while (this.leftSleeveMount.children.length > 0) {
+                    this.leftSleeveMount.remove(this.leftSleeveMount.children[0]);
+                }
+                while (this.rightSleeveMount.children.length > 0) {
+                    this.rightSleeveMount.remove(this.rightSleeveMount.children[0]);
+                }
+                this.animatedNewBadges = [];
+                if (this.footMeshes) {
+                    this.footMeshes.forEach(f => f.visible = true);
+                }
+            }
+
+            renderOutfit(outfitMap) {
+                this.clearClothes();
+                const items = Object.values(outfitMap);
+
+                const hasShirtAndSweater = Boolean(outfitMap['shirt'] && outfitMap['sweater']);
+                const hasPantsAndSkirt = Boolean(outfitMap['pants'] && outfitMap['skirt']);
+                const hasFootwear = Boolean(outfitMap['shoes'] || outfitMap['sneakers']);
+
+                // Hide default robot feet when wearing shoes or sneakers so even SMALL shoes are 100% visible without clipping
+                if (this.footMeshes) {
+                    this.footMeshes.forEach(f => f.visible = !hasFootwear);
+                }
+
+                items.forEach(itemData => {
+                    const meshGroup = this.buildClothingPiece3D(itemData, {
+                        hasShirtAndSweater,
+                        hasPantsAndSkirt
+                    });
+                    if (meshGroup) {
+                        this.clothingGroup.add(meshGroup);
+                    }
+                });
+            }
+
+            // Helper to build a seamless sleeve directly on the character's arm pivot
+            attachFittedArmSleeves(mat, trimMat, opts) {
+                const { shoulderRadius, topRadius, botRadius, length, hasCuff, cuffHeight } = opts;
+
+                [this.leftSleeveMount, this.rightSleeveMount].forEach(mount => {
+                    const sleeveContainer = new THREE.Group();
+
+                    // Seamless rounded shoulder cap centered at the arm joint (0,0,0)
+                    const capGeo = new THREE.SphereGeometry(shoulderRadius, 20, 16);
+                    const cap = new THREE.Mesh(capGeo, mat);
+                    cap.scale.set(1.05, 0.95, 1.05);
+                    cap.add(createCartoonOutline(capGeo, 1.05));
+                    sleeveContainer.add(cap);
+
+                    // Coaxial sleeve cylinder going straight down the arm (0, -length/2, 0)
+                    const cylGeo = new THREE.CylinderGeometry(topRadius, botRadius, length, 22);
+                    const cyl = new THREE.Mesh(cylGeo, mat);
+                    cyl.position.set(0, -length * 0.5, 0);
+                    cyl.add(createCartoonOutline(cylGeo, 1.05));
+                    sleeveContainer.add(cyl);
+
+                    // Optional ribbed cuff or trim ring at the end of the sleeve
+                    if (hasCuff && trimMat) {
+                        const cuffGeo = new THREE.CylinderGeometry(botRadius * 1.04, botRadius * 0.98, cuffHeight || 0.08, 22);
+                        const cuff = new THREE.Mesh(cuffGeo, trimMat);
+                        cuff.position.set(0, -length - (cuffHeight || 0.08) * 0.3, 0);
+                        cuff.add(createCartoonOutline(cuffGeo, 1.05));
+                        sleeveContainer.add(cuff);
+                    }
+
+                    mount.add(sleeveContainer);
+                });
+            }
+
+            buildClothingPiece3D(itemData, layerFlags) {
+                const { id, adjective } = itemData;
+                const cat = CLOTHING_CATALOG.find(c => c.id === id) || CLOTHING_CATALOG[0];
+                const color = cat.defaultColor;
+
+                const mat = createClothingMaterial(color, adjective);
+                const whiteTrimMat = new THREE.MeshToonMaterial({
+                    color: adjective === 'old' ? 0xd6d3d1 : 0xffffff,
+                    gradientMap: getCartoonGradientMap()
+                });
+                const darkSoleMat = new THREE.MeshToonMaterial({
+                    color: 0x1e293b,
+                    gradientMap: getCartoonGradientMap()
+                });
+
+                const group = new THREE.Group();
+                group.userData = { clothingId: id };
+
+                const isBig = adjective === 'big';
+                const isSmall = adjective === 'small';
+                const isLong = adjective === 'long';
+                const isShort = adjective === 'short';
+                const isOld = adjective === 'old';
+                const isNew = adjective === 'new';
+
+                const addConditionBadgeIfNeeded = (parentGroup, posX, posY, posZ, scale = 1.0) => {
+                    if (!isOld && !isNew) return;
+                    if (isOld) {
+                        const oldBadge = createOldPatchBadgeGroup();
+                        oldBadge.scale.set(scale, scale, scale);
+                        oldBadge.position.set(posX, posY, posZ);
+                        parentGroup.add(oldBadge);
+                    } else if (isNew) {
+                        const newSparkle = createSparkleBadgeGroup();
+                        newSparkle.scale.set(scale, scale, scale);
+                        newSparkle.position.set(posX, posY, posZ);
+                        parentGroup.add(newSparkle);
+                        this.animatedNewBadges.push(newSparkle);
+                    }
+                };
+
+                if (id === 'hat') {
+                    // HAT: Smooth cartoon cap/top-hat seated tightly on the head curve
+                    const hatGroup = new THREE.Group();
+
+                    if (isBig) {
+                        hatGroup.position.set(0, 2.02, 0);
+                        const brimGeo = new THREE.CylinderGeometry(1.42, 1.42, 0.11, 32);
+                        const brim = new THREE.Mesh(brimGeo, mat);
+                        brim.add(createCartoonOutline(brimGeo, 1.04));
+
+                        const crownGeo = new THREE.CylinderGeometry(0.86, 0.74, 0.88, 32);
+                        const crown = new THREE.Mesh(crownGeo, mat);
+                        crown.position.y = 0.45;
+                        crown.add(createCartoonOutline(crownGeo, 1.045));
+
+                        const ribbon = new THREE.Mesh(new THREE.CylinderGeometry(0.77, 0.76, 0.15, 32), whiteTrimMat);
+                        ribbon.position.y = 0.12;
+                        const pom = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 16), whiteTrimMat);
+                        pom.position.y = 0.96;
+                        hatGroup.add(brim, crown, ribbon, pom);
+                    } else if (isSmall) {
+                        hatGroup.position.set(0, 2.31, 0);
+                        const brimGeo = new THREE.CylinderGeometry(0.38, 0.38, 0.06, 24);
+                        const brim = new THREE.Mesh(brimGeo, mat);
+                        brim.add(createCartoonOutline(brimGeo, 1.05));
+
+                        const crownGeo = new THREE.CylinderGeometry(0.23, 0.25, 0.23, 24);
+                        const crown = new THREE.Mesh(crownGeo, mat);
+                        crown.position.y = 0.13;
+                        crown.add(createCartoonOutline(crownGeo, 1.05));
+
+                        const ribbon = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.055, 24), whiteTrimMat);
+                        ribbon.position.y = 0.05;
+                        const pom = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 12), whiteTrimMat);
+                        pom.position.y = 0.28;
+                        hatGroup.add(brim, crown, ribbon, pom);
+                    } else {
+                        hatGroup.position.set(0, 2.13, 0);
+                        const brimGeo = new THREE.CylinderGeometry(0.94, 0.94, 0.09, 32);
+                        const brim = new THREE.Mesh(brimGeo, mat);
+                        brim.add(createCartoonOutline(brimGeo, 1.04));
+
+                        const crownGeo = new THREE.CylinderGeometry(0.58, 0.54, 0.54, 32);
+                        const crown = new THREE.Mesh(crownGeo, mat);
+                        crown.position.y = 0.28;
+                        crown.add(createCartoonOutline(crownGeo, 1.045));
+                        if (isOld) crown.rotation.z = 0.12;
+
+                        const ribbon = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.55, 0.11, 32), whiteTrimMat);
+                        ribbon.position.y = 0.10;
+                        const pom = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 16), whiteTrimMat);
+                        pom.position.y = 0.59;
+                        hatGroup.add(brim, crown, ribbon, pom);
+                        addConditionBadgeIfNeeded(hatGroup, 0, 0.32, 0.62, 1.15);
+                    }
+
+                    group.add(hatGroup);
+                }
+
+                else if (id === 'shirt') {
+                    // SHIRT: Sporty V-Neck Polo / T-Shirt in bright Red with white collar & chest pocket (distinct from Sweater!)
+                    const shirtGroup = new THREE.Group();
+
+                    // Torso dimensions tailored to hug the bot's 0.45-0.49 body without gaps
+                    const topR = isBig ? 0.66 : (isSmall ? 0.465 : 0.495);
+                    const botR = isBig ? 0.78 : (isSmall ? 0.48 : 0.535);
+                    const shirtH = isBig ? 1.12 : (isSmall ? 0.44 : 0.84);
+                    const centerY = isBig ? 0.40 : (isSmall ? 0.68 : 0.49);
+
+                    // 1. Main T-shirt body cylinder
+                    const torsoGeo = new THREE.CylinderGeometry(topR, botR, shirtH, 32);
+                    const torsoMesh = new THREE.Mesh(torsoGeo, mat);
+                    torsoMesh.position.set(0, centerY, 0);
+                    torsoMesh.add(createCartoonOutline(torsoGeo, 1.04));
+                    shirtGroup.add(torsoMesh);
+
+                    // 2. Smooth upper chest & shoulder yoke dome
+                    const yokeGeo = new THREE.SphereGeometry(topR, 28, 18);
+                    const yokeMesh = new THREE.Mesh(yokeGeo, mat);
+                    yokeMesh.scale.set(1.06, 0.34, 0.96);
+                    yokeMesh.position.set(0, centerY + shirtH * 0.5 - 0.02, 0);
+                    yokeMesh.add(createCartoonOutline(yokeGeo, 1.04));
+                    shirtGroup.add(yokeMesh);
+
+                    // 3. Bottom hem band
+                    const hemGeo = new THREE.TorusGeometry(botR * 0.99, isBig ? 0.045 : 0.032, 12, 32);
+                    const hemRing = new THREE.Mesh(hemGeo, whiteTrimMat);
+                    hemRing.rotation.x = Math.PI / 2;
+                    hemRing.position.set(0, centerY - shirtH * 0.5 + 0.02, 0);
+                    shirtGroup.add(hemRing);
+
+                    // 4. Crisp V-Neck / Polo Collar & 2 White Buttons on chest for unmistakable "Shirt" look
+                    const collarGeo = new THREE.TorusGeometry(0.28, 0.052, 14, 28);
+                    const collar = new THREE.Mesh(collarGeo, whiteTrimMat);
+                    collar.rotation.x = Math.PI / 2;
+                    collar.position.set(0, 0.92, 0);
+                    collar.add(createCartoonOutline(collarGeo, 1.05));
+                    shirtGroup.add(collar);
+
+                    // White Polo placket & pocket so Shirt looks clearly like a Shirt
+                    const placketGeo = new THREE.BoxGeometry(0.11, 0.26, 0.06);
+                    const placket = new THREE.Mesh(placketGeo, whiteTrimMat);
+                    placket.position.set(0, 0.76, topR * 0.96);
+                    shirtGroup.add(placket);
+
+                    // 5. Short T-Shirt Sleeves directly on the character's arms (shows bare robot lower arms!)
+                    if (!layerFlags.hasShirtAndSweater) {
+                        this.attachFittedArmSleeves(mat, whiteTrimMat, {
+                            shoulderRadius: isBig ? 0.25 : (isSmall ? 0.155 : 0.185),
+                            topRadius:      isBig ? 0.24 : (isSmall ? 0.148 : 0.175),
+                            botRadius:      isBig ? 0.28 : (isSmall ? 0.152 : 0.19),
+                            length:         isBig ? 0.36 : (isSmall ? 0.15  : 0.24),
+                            hasCuff:        true,
+                            cuffHeight:     0.05
+                        });
+                    }
+
+                    addConditionBadgeIfNeeded(shirtGroup, 0, centerY + 0.02, botR + 0.06, 1.25);
+
+                    group.add(shirtGroup);
+                }
+
+                else if (id === 'sweater') {
+                    // SWEATER: Puffy Winter Knit Pullover with high Turtleneck, horizontal cable-ribs & full-length sleeves!
+                    const sweaterGroup = new THREE.Group();
+                    const layerBoost = layerFlags.hasShirtAndSweater ? 0.045 : 0;
+                    const topR = (isBig ? 0.70 : (isSmall ? 0.48 : 0.54)) + layerBoost;
+                    const botR = (isBig ? 0.82 : (isSmall ? 0.50 : 0.58)) + layerBoost;
+                    const sweaterH = isBig ? 1.16 : (isSmall ? 0.48 : 0.88);
+                    const centerY = isBig ? 0.39 : (isSmall ? 0.66 : 0.48);
+
+                    // 1. Main Sweater Torso
+                    const bodyGeo = new THREE.CylinderGeometry(topR, botR, sweaterH, 32);
+                    const bodyMesh = new THREE.Mesh(bodyGeo, mat);
+                    bodyMesh.position.set(0, centerY, 0);
+                    bodyMesh.add(createCartoonOutline(bodyGeo, 1.04));
+                    sweaterGroup.add(bodyMesh);
+
+                    // 2. Smooth Shoulder Dome
+                    const domeGeo = new THREE.SphereGeometry(topR, 28, 18);
+                    const domeMesh = new THREE.Mesh(domeGeo, mat);
+                    domeMesh.scale.set(1.06, 0.36, 0.96);
+                    domeMesh.position.set(0, centerY + sweaterH * 0.5 - 0.02, 0);
+                    domeMesh.add(createCartoonOutline(domeGeo, 1.04));
+                    sweaterGroup.add(domeMesh);
+
+                    // 3. High Cozy Folded Turtleneck Collar
+                    const neckGeo = new THREE.CylinderGeometry(0.34, 0.36, 0.24, 24);
+                    const turtleNeck = new THREE.Mesh(neckGeo, whiteTrimMat);
+                    turtleNeck.position.set(0, 0.97, 0);
+                    turtleNeck.add(createCartoonOutline(neckGeo, 1.05));
+                    sweaterGroup.add(turtleNeck);
+
+                    // 4. Prominent Puffy Horizontal Knit Rings & Chest Stripes
+                    const ribCount = isBig ? 4 : (isSmall ? 2 : 3);
+                    for (let i = 0; i < ribCount; i++) {
+                        const frac = (i + 0.5) / ribCount;
+                        const ry = (centerY - sweaterH / 2) + frac * sweaterH;
+                        const rRad = botR + (topR - botR) * frac;
+                        const rib = new THREE.Mesh(
+                            new THREE.TorusGeometry(rRad * 1.01, isBig ? 0.055 : 0.038, 14, 32),
+                            i === 1 ? whiteTrimMat : mat
+                        );
+                        rib.rotation.x = Math.PI / 2;
+                        rib.position.set(0, ry, 0);
+                        sweaterGroup.add(rib);
+                    }
+
+                    // 5. Thick Ribbed Waistband Hem
+                    const hemGeo = new THREE.CylinderGeometry(botR * 1.02, botR * 0.98, 0.13, 32);
+                    const hem = new THREE.Mesh(hemGeo, whiteTrimMat);
+                    hem.position.set(0, centerY - sweaterH / 2 + 0.05, 0);
+                    hem.add(createCartoonOutline(hemGeo, 1.04));
+                    sweaterGroup.add(hem);
+
+                    // 6. Long Winter Sweater Sleeves down to the wrists
+                    this.attachFittedArmSleeves(mat, whiteTrimMat, {
+                        shoulderRadius: (isBig ? 0.28 : (isSmall ? 0.17 : 0.21)) + layerBoost * 0.5,
+                        topRadius:      (isBig ? 0.27 : (isSmall ? 0.16 : 0.20)) + layerBoost * 0.5,
+                        botRadius:      (isBig ? 0.25 : (isSmall ? 0.15 : 0.185)) + layerBoost * 0.5,
+                        length:         isBig ? 0.64 : (isSmall ? 0.38 : 0.56),
+                        hasCuff:        true,
+                        cuffHeight:     0.09
+                    });
+
+                    addConditionBadgeIfNeeded(sweaterGroup, 0, centerY, botR + 0.08, 1.25);
+
+                    group.add(sweaterGroup);
+                }
+
+                else if (id === 'pants') {
+                    // PANTS: Distinct 2-Legged Denim Blue Trousers with dark belt & gold buckle aligned at ±0.27
+                    const pantsGroup = new THREE.Group();
+                    const waistScale = isBig ? 1.38 : (isSmall ? 0.95 : 1.04);
+
+                    const pelvisGeo = new THREE.CylinderGeometry(0.49 * waistScale, 0.50 * waistScale, 0.28, 28);
+                    const pelvis = new THREE.Mesh(pelvisGeo, mat);
+                    pelvis.position.set(0, -0.05, 0);
+                    pelvis.add(createCartoonOutline(pelvisGeo, 1.04));
+                    pantsGroup.add(pelvis);
+
+                    const beltGeo = new THREE.CylinderGeometry(0.51 * waistScale, 0.51 * waistScale, 0.085, 28);
+                    const belt = new THREE.Mesh(beltGeo, darkSoleMat);
+                    belt.position.set(0, 0.06, 0);
+                    pantsGroup.add(belt);
+
+                    const buckleMat = new THREE.MeshToonMaterial({ color: 0xfacc15, gradientMap: getCartoonGradientMap() });
+                    const beltBuckle = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.11, 0.08), buckleMat);
+                    beltBuckle.position.set(0, 0.06, 0.51 * waistScale);
+                    pantsGroup.add(beltBuckle);
+
+                    const legLen = isLong ? 0.88 : (isShort ? 0.26 : 0.58);
+                    const legTopY = -0.15;
+                    const legCenterY = legTopY - legLen / 2;
+                    const legTopR = isBig ? 0.31 : (isSmall ? 0.165 : 0.21);
+                    const legBotR = isBig ? 0.34 : (isSmall ? 0.155 : 0.20);
+
+                    const legGeo = new THREE.CylinderGeometry(legTopR, legBotR, legLen, 22);
+                    const leftPant = new THREE.Mesh(legGeo, mat);
+                    leftPant.position.set(-0.27, legCenterY, 0);
+                    leftPant.add(createCartoonOutline(legGeo, 1.05));
+
+                    const rightPant = new THREE.Mesh(legGeo, mat);
+                    rightPant.position.set(0.27, legCenterY, 0);
+                    rightPant.add(createCartoonOutline(legGeo, 1.05));
+
+                    const cuffGeo = new THREE.CylinderGeometry(legBotR * 1.05, legBotR * 1.05, 0.065, 22);
+                    const lCuff = new THREE.Mesh(cuffGeo, whiteTrimMat);
+                    lCuff.position.set(-0.27, legCenterY - legLen / 2 + 0.03, 0);
+                    const rCuff = new THREE.Mesh(cuffGeo, whiteTrimMat);
+                    rCuff.position.set(0.27, legCenterY - legLen / 2 + 0.03, 0);
+
+                    pantsGroup.add(leftPant, rightPant, lCuff, rCuff);
+
+                    addConditionBadgeIfNeeded(pantsGroup, -0.27, legCenterY, legBotR + 0.06, 1.15);
+
+                    group.add(pantsGroup);
+                }
+
+                else if (id === 'skirt') {
+                    // SKIRT: Flared Pleated Pink A-Line Skirt (single bell cone with vertical pleat ridges)
+                    const skirtGroup = new THREE.Group();
+                    const bottomFlareR = isBig ? 1.32 : (isSmall ? 0.60 : 0.90);
+                    const skirtLen = isLong ? 0.86 : (isShort ? 0.26 : 0.54);
+                    const topY = 0.04;
+                    const centerY = topY - skirtLen / 2;
+
+                    const coneGeo = new THREE.CylinderGeometry(0.49, bottomFlareR, skirtLen, 28);
+                    const cone = new THREE.Mesh(coneGeo, mat);
+                    cone.position.set(0, centerY, 0);
+                    cone.add(createCartoonOutline(coneGeo, 1.04));
+                    skirtGroup.add(cone);
+
+                    const waistBandGeo = new THREE.CylinderGeometry(0.515, 0.515, 0.095, 32);
+                    const waistBand = new THREE.Mesh(waistBandGeo, whiteTrimMat);
+                    waistBand.position.set(0, topY, 0);
+                    waistBand.add(createCartoonOutline(waistBandGeo, 1.04));
+
+                    const bottomTrim = new THREE.Mesh(
+                        new THREE.TorusGeometry(bottomFlareR * 0.98, 0.048, 14, 32),
+                        whiteTrimMat
+                    );
+                    bottomTrim.rotation.x = Math.PI / 2;
+                    bottomTrim.position.set(0, centerY - skirtLen / 2 + 0.02, 0);
+
+                    skirtGroup.add(waistBand, bottomTrim);
+
+                    addConditionBadgeIfNeeded(skirtGroup, 0, centerY, (0.49 + bottomFlareR) * 0.52 + 0.06, 1.2);
+
+                    group.add(skirtGroup);
+                }
+
+                else if (id === 'shoes') {
+                    // SHOES: Classic Low-Cut Brown Loafer / Dress Shoes with Dark Wooden Heel & Big Shiny Gold Buckle
+                    const shoesGroup = new THREE.Group();
+                    const scaleX = isBig ? 1.62 : (isSmall ? 0.76 : 1.16);
+                    const scaleY = isBig ? 1.50 : (isSmall ? 0.78 : 1.15);
+                    const scaleZ = isBig ? 1.75 : (isSmall ? 0.76 : 1.22);
+                    const buckleMat = new THREE.MeshToonMaterial({
+                        color: 0xfacc15,
+                        gradientMap: getCartoonGradientMap()
+                    });
+
+                    [-0.27, 0.27].forEach((xPos, idx) => {
+                        const shoe = new THREE.Group();
+                        // Angled slightly outward and forward so camera sees the full profile of the shoe!
+                        shoe.position.set(xPos + (isBig ? (idx === 0 ? -0.07 : 0.07) : 0), -1.21, 0.14);
+                        shoe.rotation.y = idx === 0 ? -0.18 : 0.18;
+                        shoe.scale.set(scaleX, scaleY, scaleZ);
+
+                        // Dark dress sole + raised back heel block
+                        const soleGeo = new THREE.BoxGeometry(0.32, 0.06, 0.52);
+                        const sole = new THREE.Mesh(soleGeo, darkSoleMat);
+                        sole.position.set(0, -0.09, 0.03);
+                        sole.add(createCartoonOutline(soleGeo, 1.05));
+
+                        const heel = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.12, 0.18), darkSoleMat);
+                        heel.position.set(0, -0.11, -0.14);
+
+                        // Low-cut brown leather body (exposes ankle)
+                        const bodyGeo = new THREE.BoxGeometry(0.30, 0.17, 0.46);
+                        const body = new THREE.Mesh(bodyGeo, mat);
+                        body.position.set(0, 0.02, 0.0);
+                        body.add(createCartoonOutline(bodyGeo, 1.06));
+
+                        // Rounded dress toe
+                        const toeGeo = new THREE.SphereGeometry(0.16, 18, 14);
+                        const roundToe = new THREE.Mesh(toeGeo, mat);
+                        roundToe.scale.set(1.02, 0.72, 1.22);
+                        roundToe.position.set(0, 0.01, 0.22);
+                        roundToe.add(createCartoonOutline(toeGeo, 1.06));
+
+                        // Prominent Gold Buckle on vamp
+                        const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.09, 0.08), buckleMat);
+                        buckle.position.set(0, 0.12, 0.14);
+                        buckle.add(createCartoonOutline(new THREE.BoxGeometry(0.22, 0.09, 0.08), 1.06));
+
+                        shoe.add(sole, heel, body, roundToe, buckle);
+                        shoesGroup.add(shoe);
+                    });
+
+                    addConditionBadgeIfNeeded(shoesGroup, -0.32, -1.04, 0.54, 1.15);
+
+                    group.add(shoesGroup);
+                }
+
+                else if (id === 'sneakers') {
+                    // SNEAKERS: Bright Yellow High-Top Sporty Converse/Basketball Sneakers with Thick White Sole, White Toe-Cap, Red Side Stripe & White Crisscross Laces!
+                    const sneakersGroup = new THREE.Group();
+                    const scaleX = isBig ? 1.65 : (isSmall ? 0.76 : 1.18);
+                    const scaleY = isBig ? 1.55 : (isSmall ? 0.78 : 1.18);
+                    const scaleZ = isBig ? 1.78 : (isSmall ? 0.76 : 1.24);
+                    const sportyStripeMat = new THREE.MeshToonMaterial({
+                        color: 0xef4444,
+                        gradientMap: getCartoonGradientMap()
+                    });
+
+                    [-0.27, 0.27].forEach((xPos, idx) => {
+                        const snk = new THREE.Group();
+                        snk.position.set(xPos + (isBig ? (idx === 0 ? -0.07 : 0.07) : 0), -1.19, 0.14);
+                        snk.rotation.y = idx === 0 ? -0.18 : 0.18;
+                        snk.scale.set(scaleX, scaleY, scaleZ);
+
+                        // Thick chunky white rubber platform sole
+                        const soleGeo = new THREE.BoxGeometry(0.36, 0.13, 0.62);
+                        const sole = new THREE.Mesh(soleGeo, whiteTrimMat);
+                        sole.position.set(0, -0.08, 0.06);
+                        sole.add(createCartoonOutline(soleGeo, 1.05));
+
+                        // Red sporty racing stripe along the white sole
+                        const stripeGeo = new THREE.BoxGeometry(0.37, 0.035, 0.58);
+                        const stripe = new THREE.Mesh(stripeGeo, sportyStripeMat);
+                        stripe.position.set(0, -0.08, 0.06);
+
+                        // Main sneaker upper
+                        const upperGeo = new THREE.BoxGeometry(0.32, 0.21, 0.48);
+                        const upper = new THREE.Mesh(upperGeo, mat);
+                        upper.position.set(0, 0.06, 0.02);
+                        upper.add(createCartoonOutline(upperGeo, 1.05));
+
+                        // High-Top Ankle Collar & Tongue
+                        const ankleGeo = new THREE.CylinderGeometry(0.185, 0.19, 0.28, 18);
+                        const ankle = new THREE.Mesh(ankleGeo, mat);
+                        ankle.position.set(0, 0.22, -0.07);
+                        ankle.add(createCartoonOutline(ankleGeo, 1.05));
+
+                        const ankleCuff = new THREE.Mesh(new THREE.TorusGeometry(0.185, 0.03, 10, 20), whiteTrimMat);
+                        ankleCuff.rotation.x = Math.PI / 2;
+                        ankleCuff.position.set(0, 0.35, -0.07);
+
+                        // Iconic White Rubber Toe-Cap at front
+                        const toeGeo = new THREE.SphereGeometry(0.175, 18, 14);
+                        const toeCap = new THREE.Mesh(toeGeo, whiteTrimMat);
+                        toeCap.scale.set(1.02, 0.72, 1.15);
+                        toeCap.position.set(0, 0.02, 0.27);
+                        toeCap.add(createCartoonOutline(toeGeo, 1.05));
+
+                        // 3 Crisp White Laces across top & ankle
+                        for (let i = 0; i < 3; i++) {
+                            const lace = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.048, 0.042), whiteTrimMat);
+                            lace.position.set(0, 0.16 + i * 0.055, 0.18 - i * 0.07);
+                            snk.add(lace);
+                        }
+
+                        snk.add(sole, stripe, upper, ankle, ankleCuff, toeCap);
+                        sneakersGroup.add(snk);
+                    });
+
+                    addConditionBadgeIfNeeded(sneakersGroup, 0.32, -1.02, 0.56, 1.15);
+
+                    group.add(sneakersGroup);
+                }
+
+                return group;
+            }
+
+            triggerReaction(type) {
+                this.reactionType = type;
+                this.reactionTime = 0;
+            }
+
+            update(dt, elapsedTime) {
+                // Idle gentle bobbing & breathing
+                this.bodyGroup.position.y = Math.sin(elapsedTime * 2.6) * 0.045;
+                this.headGroup.rotation.z = Math.sin(elapsedTime * 1.5) * 0.04;
+
+                // Animate all "NEW" sparkling star clusters (twinkling, spinning, pulsing & floating)
+                if (this.animatedNewBadges.length > 0) {
+                    this.animatedNewBadges.forEach(badgeGroup => {
+                        const stars = badgeGroup.userData.sparkleItems || [];
+                        stars.forEach((star, idx) => {
+                            const t = elapsedTime * star.userData.speed + star.userData.phase;
+                            // Pulse scale between 0.35 and 1.35 for a cartoonish shiny twinkle
+                            const pulse = 0.85 + 0.52 * Math.sin(t);
+                            star.scale.set(pulse, pulse, pulse);
+                            // Spin & bob around base position
+                            star.rotation.z = elapsedTime * (idx % 2 === 0 ? 3.2 : -3.2) + star.userData.phase;
+                            star.rotation.y = Math.sin(t * 0.7) * 0.5;
+                            star.position.y = star.userData.baseY + Math.sin(t * 0.85) * 0.055;
+                            star.position.x = star.userData.baseX + Math.cos(t * 0.65) * 0.035;
+                        });
+                    });
+                }
+
+                // Blinking animation
+                this.blinkTimer -= dt;
+                if (this.blinkTimer <= 0) {
+                    this.eyesMeshList.forEach(e => e.scale.y = 0.1);
+                    if (this.blinkTimer < -0.14) {
+                        this.eyesMeshList.forEach(e => e.scale.y = 1.25);
+                        this.blinkTimer = 2.4 + Math.random() * 2.5;
+                    }
+                }
+
+                // Celebration jump or wave reaction
+                if (this.reactionType === 'happy') {
+                    this.reactionTime += dt * 7;
+                    this.bodyGroup.position.y += Math.abs(Math.sin(this.reactionTime)) * 0.35;
+                    this.leftArmGroup.rotation.z = -Math.abs(Math.sin(this.reactionTime)) * 1.4;
+                    this.rightArmGroup.rotation.z = Math.abs(Math.sin(this.reactionTime)) * 1.4;
+                    if (this.reactionTime > Math.PI * 4) {
+                        this.reactionType = null;
+                        this.leftArmGroup.rotation.z = 0;
+                        this.rightArmGroup.rotation.z = 0;
+                    }
+                } else {
+                    this.leftArmGroup.rotation.z = Math.sin(elapsedTime * 2) * 0.06;
+                    this.rightArmGroup.rotation.z = -Math.sin(elapsedTime * 2) * 0.06;
+                }
+            }
+        }
+
+        /********************************************************************
+         * 6. 3D CURTAIN SYSTEM FOR LEFT BOOTH (COMPLETELY HIDES OUTFIT)
+         ********************************************************************/
+        class DressingRoomCurtain {
+            constructor(boothX) {
+                this.group = new THREE.Group();
+                this.group.position.set(boothX, 0.35, 1.55);
+
+                this.isOpen = false;
+                this.progress = 1; // 0 = open, 1 = fully closed
+                this.targetProgress = 1;
+
+                // Gold curtain rod
+                const rodMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.5, roughness: 0.25 });
+                const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 3.8, 16), rodMat);
+                rod.rotation.z = Math.PI / 2;
+                rod.position.set(0, 2.38, 0);
+                this.group.add(rod);
+
+                // Rich velvet magenta/rose pleated curtains (Left & Right halves)
+                const curtainMat = new THREE.MeshStandardMaterial({
+                    color: 0xe11d48,
+                    roughness: 0.45,
+                    metalness: 0.05
+                });
+                const goldTrimMat = new THREE.MeshStandardMaterial({
+                    color: 0xfde047,
+                    roughness: 0.3
+                });
+
+                this.leftWing = new THREE.Group();
+                this.rightWing = new THREE.Group();
+                this.group.add(this.leftWing, this.rightWing);
+
+                // Solid backing panel inside each wing so zero silhouette or gap is ever visible when closed
+                const backBlockerGeo = new THREE.BoxGeometry(1.92, 4.65, 0.14);
+                const leftBlocker = new THREE.Mesh(backBlockerGeo, curtainMat);
+                leftBlocker.position.set(0.95, 0, -0.02);
+                this.leftWing.add(leftBlocker);
+
+                const rightBlocker = new THREE.Mesh(backBlockerGeo, curtainMat);
+                rightBlocker.position.set(-0.95, 0, -0.02);
+                this.rightWing.add(rightBlocker);
+
+                // Pleated vertical folds
+                const pleatCount = 6;
+                for (let i = 0; i < pleatCount; i++) {
+                    const pleatGeo = new THREE.CylinderGeometry(0.18, 0.20, 4.68, 16);
+                    const lp = new THREE.Mesh(pleatGeo, curtainMat);
+                    lp.position.set(0.18 + i * 0.31, 0, 0.04);
+                    const lGold = new THREE.Mesh(new THREE.CylinderGeometry(0.205, 0.205, 0.16, 16), goldTrimMat);
+                    lGold.position.set(0.18 + i * 0.31, -2.22, 0.04);
+                    this.leftWing.add(lp, lGold);
+
+                    const rp = new THREE.Mesh(pleatGeo, curtainMat);
+                    rp.position.set(-0.18 - i * 0.31, 0, 0.04);
+                    const rGold = new THREE.Mesh(new THREE.CylinderGeometry(0.205, 0.205, 0.16, 16), goldTrimMat);
+                    rGold.position.set(-0.18 - i * 0.31, -2.22, 0.04);
+                    this.rightWing.add(rp, rGold);
+                }
+
+                this.updateWingPositions();
+            }
+
+            open() {
+                if (this.targetProgress !== 0) sfx.playCurtain();
+                this.targetProgress = 0;
+                this.isOpen = true;
+            }
+
+            close() {
+                if (this.targetProgress !== 1) sfx.playCurtain();
+                this.targetProgress = 1;
+                this.isOpen = false;
+            }
+
+            update(dt) {
+                const speed = 3.2;
+                if (Math.abs(this.progress - this.targetProgress) > 0.001) {
+                    if (this.progress < this.targetProgress) {
+                        this.progress = Math.min(1, this.progress + dt * speed);
+                    } else {
+                        this.progress = Math.max(0, this.progress - dt * speed);
+                    }
+                    this.updateWingPositions();
+                }
+
+                // Extra security: when curtain is >92% closed during reconstruction, hide leftCharacter clothing meshes completely
+                if (leftCharacter) {
+                    leftCharacter.clothingGroup.visible = this.progress < 0.92;
+                }
+            }
+
+            updateWingPositions() {
+                // progress 1 => wings meet tightly at center; progress 0 => wings compressed at outer edges
+                const scaleX = 0.16 + 0.84 * this.progress;
+                this.leftWing.position.x = -1.90;
+                this.leftWing.scale.x = scaleX;
+
+                this.rightWing.position.x = 1.90;
+                this.rightWing.scale.x = scaleX;
+            }
+        }
+
+        /********************************************************************
+         * 7. INITIALIZE 3D ENVIRONMENT & DRESSING BOOTHS
+         ********************************************************************/
+        function buildDressingBooth(xCenter, accentHex, floorColorHex) {
+            const booth = new THREE.Group();
+            booth.position.set(xCenter, 0, 0);
+
+            const gradMap = getCartoonGradientMap();
+            // Booth Floor matches the exact color theme of the booth so Brown Shoes & Yellow/White Sneakers pop with high contrast!
+            const boothFloorMat = new THREE.MeshToonMaterial({
+                color: floorColorHex,
+                gradientMap: gradMap
+            });
+            const accentMat = new THREE.MeshStandardMaterial({
+                color: accentHex,
+                roughness: 0.2,
+                emissive: accentHex,
+                emissiveIntensity: 0.15
+            });
+
+            const stageGeo = new THREE.CylinderGeometry(1.98, 2.15, 0.38, 36);
+            const stage = new THREE.Mesh(stageGeo, boothFloorMat);
+            stage.position.set(0, -1.86, 0);
+            stage.receiveShadow = true;
+            stage.add(createCartoonOutline(stageGeo, 1.025));
+            booth.add(stage);
+
+            // Inner contrasting stage mat in the same booth color family
+            const innerFloorDisk = new THREE.Mesh(
+                new THREE.CylinderGeometry(1.75, 1.75, 0.04, 36),
+                new THREE.MeshToonMaterial({ color: accentHex, gradientMap: gradMap })
+            );
+            innerFloorDisk.position.set(0, -1.66, 0);
+            innerFloorDisk.receiveShadow = true;
+            booth.add(innerFloorDisk);
+
+            const glowRing = new THREE.Mesh(new THREE.TorusGeometry(1.98, 0.07, 14, 40), accentMat);
+            glowRing.rotation.x = Math.PI / 2;
+            glowRing.position.set(0, -1.67, 0);
+            booth.add(glowRing);
+
+            // Curved dressing booth back wall tinted in the booth's signature color
+            const backWallGeo = new THREE.CylinderGeometry(2.05, 2.05, 4.8, 32, 1, true, Math.PI * 0.65, Math.PI * 0.7);
+            const backWallMat = new THREE.MeshStandardMaterial({
+                color: floorColorHex,
+                side: THREE.DoubleSide,
+                roughness: 0.35
+            });
+            const backWall = new THREE.Mesh(backWallGeo, backWallMat);
+            backWall.position.set(0, 0.4, 0);
+            booth.add(backWall);
+
+            // Top canopy arch
+            const roof = new THREE.Mesh(new THREE.CylinderGeometry(2.15, 2.15, 0.28, 36), accentMat);
+            roof.position.set(0, 2.82, 0);
+            booth.add(roof);
+
+            // Side pillars
+            const pillarGeo = new THREE.CylinderGeometry(0.12, 0.12, 4.8, 16);
+            const leftPillar = new THREE.Mesh(pillarGeo, accentMat);
+            leftPillar.position.set(-1.88, 0.4, 0.95);
+            const rightPillar = new THREE.Mesh(pillarGeo, accentMat);
+            rightPillar.position.set(1.88, 0.4, 0.95);
+            booth.add(leftPillar, rightPillar);
+
+            return booth;
+        }
+
+        function initThreeScene() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xdbeafe);
+            scene.fog = new THREE.Fog(0xdbeafe, 18, 34);
+
+            camera = new THREE.PerspectiveCamera(36, window.innerWidth / window.innerHeight, 0.1, 100);
+            updateCameraForAspect();
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            clock = new THREE.Clock();
+
+            // Soft colorful studio lighting
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0x93c5fd, 0.85);
+            hemiLight.position.set(0, 12, 0);
+            scene.add(hemiLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
+            dirLight.position.set(5, 12, 10);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 1024;
+            dirLight.shadow.mapSize.height = 1024;
+            scene.add(dirLight);
+
+            const fillLight = new THREE.DirectionalLight(0xfef08a, 0.35);
+            fillLight.position.set(-7, 5, 6);
+            scene.add(fillLight);
+
+            // Toy Store Floor
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.4 });
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(50, 50), floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = -2.05;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // Build Left (Sky Blue) & Right (Amber Gold) Dressing Booths with matching colored booth floors
+            const leftBooth = buildDressingBooth(LEFT_BOOTH_X, 0x0ea5e9, 0xbae6fd);
+            const rightBooth = buildDressingBooth(RIGHT_BOOTH_X, 0xf59e0b, 0xfde68a);
+            scene.add(leftBooth, rightBooth);
+
+            // Build Identical Cute 3D Characters
+            leftCharacter = new ToyBotCharacter(LEFT_BOOTH_X);
+            rightCharacter = new ToyBotCharacter(RIGHT_BOOTH_X);
+            scene.add(leftCharacter.root, rightCharacter.root);
+
+            // Build Functional Animated Curtain on Left Booth
+            leftCurtainSystem = new DressingRoomCurtain(LEFT_BOOTH_X);
+            scene.add(leftCurtainSystem.group);
+
+            // Interactive Drag-to-Rotate Characters (Mouse & Touch)
+            setupCharacterRotationInteraction(renderer.domElement);
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function updateCameraForAspect() {
+            const aspect = window.innerWidth / window.innerHeight;
+            camera.aspect = aspect;
+            // Frame the two booths and angle slightly downward so the colored booth floors, shoes, and sneakers are 100% clear
+            if (aspect < 1.35) {
+                camera.position.set(0.35, 0.52, 12.4);
+                camera.lookAt(0.35, 0.08, 0);
+            } else if (aspect < 1.65) {
+                camera.position.set(0.30, 0.46, 10.4);
+                camera.lookAt(0.30, 0.08, 0);
+            } else {
+                camera.position.set(0.25, 0.44, 9.5);
+                camera.lookAt(0.25, 0.08, 0);
+            }
+            camera.updateProjectionMatrix();
+        }
+
+        function onWindowResize() {
+            if (!camera || !renderer) return;
+            updateCameraForAspect();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            if (gameState.phase === 'FEEDBACK') {
+                update3DFeedbackPinPositions();
+            }
+        }
+
+        function setupCharacterRotationInteraction(domElement) {
+            let isDragging = false;
+            let prevX = 0;
+            let activeChar = null;
+
+            const startDrag = (clientX) => {
+                isDragging = true;
+                prevX = clientX;
+                activeChar = clientX < window.innerWidth / 2 ? leftCharacter : rightCharacter;
+            };
+            const moveDrag = (clientX) => {
+                if (!isDragging || !activeChar) return;
+                const deltaX = clientX - prevX;
+                prevX = clientX;
+                activeChar.bodyGroup.rotation.y += deltaX * 0.012;
+            };
+            const endDrag = () => {
+                isDragging = false;
+                activeChar = null;
+            };
+
+            domElement.addEventListener('mousedown', e => startDrag(e.clientX));
+            window.addEventListener('mousemove', e => moveDrag(e.clientX));
+            window.addEventListener('mouseup', endDrag);
+
+            domElement.addEventListener('touchstart', e => {
+                if (e.touches.length === 1) startDrag(e.touches[0].clientX);
+            }, { passive: true });
+            window.addEventListener('touchmove', e => {
+                if (e.touches.length === 1) moveDrag(e.touches[0].clientX);
+            }, { passive: true });
+            window.addEventListener('touchend', endDrag);
+        }
+
+        /********************************************************************
+         * 8. CONFETTI CELEBRATION PARTICLES IN 3D
+         ********************************************************************/
+        function spawnCelebrationConfetti() {
+            clearConfetti();
+            const colors = [0xef4444, 0x3b82f6, 0xfacc15, 0x22c55e, 0xa855f7, 0xf472b6];
+            const geo = new THREE.PlaneGeometry(0.16, 0.16);
+            for (let i = 0; i < 70; i++) {
+                const mat = new THREE.MeshBasicMaterial({
+                    color: colors[i % colors.length],
+                    side: THREE.DoubleSide
+                });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.set(
+                    (Math.random() - 0.5) * 12,
+                    3.2 + Math.random() * 2.5,
+                    1.5 + (Math.random() - 0.5) * 2
+                );
+                mesh.userData = {
+                    vy: -1.6 - Math.random() * 1.8,
+                    vx: (Math.random() - 0.5) * 0.8,
+                    vr: (Math.random() - 0.5) * 6
+                };
+                scene.add(mesh);
+                confettiParticles.push(mesh);
+            }
+        }
+
+        function clearConfetti() {
+            confettiParticles.forEach(p => scene.remove(p));
+            confettiParticles = [];
+        }
+
+        /********************************************************************
+         * 9. RANDOM OUTFIT GENERATIO
