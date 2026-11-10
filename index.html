@@ -1390,7 +1390,7 @@
         class DressingRoomCurtain {
             constructor(boothX) {
                 this.group = new THREE.Group();
-                this.group.position.set(boothX, 0.35, 1.55);
+                this.group.position.set(boothX, 0.72, 1.55);
                 this.progress = 1;
                 this.targetProgress = 1;
 
@@ -1399,7 +1399,7 @@
                 const rodGeo = new THREE.CylinderGeometry(0.06, 0.06, 3.8, 14);
                 rodGeo.rotateZ(Math.PI / 2);
                 const rod = new THREE.Mesh(rodGeo, rodMat);
-                rod.position.set(0, 2.38, 0);
+                rod.position.set(0, 2.76, 0);
                 rod.add(createCartoonOutline(rodGeo, 1.05));
                 this.group.add(rod);
 
@@ -1408,7 +1408,7 @@
                 this.rightWing = new THREE.Group();
                 this.group.add(this.leftWing, this.rightWing);
 
-                const blockerGeo = new THREE.BoxGeometry(1.92, 4.65, 0.14);
+                const blockerGeo = new THREE.BoxGeometry(1.92, 5.42, 0.14);
                 const leftMesh = new THREE.Mesh(blockerGeo, curtainMat);
                 leftMesh.position.set(0.95, 0, -0.02);
                 leftMesh.add(createCartoonOutline(blockerGeo, 1.02));
@@ -1477,10 +1477,10 @@
             booth.add(innerFloorDisk);
 
             const backWall = new THREE.Mesh(
-                new THREE.CylinderGeometry(2.05, 2.05, 4.8, 28, 1, true, Math.PI * 0.65, Math.PI * 0.7),
+                new THREE.CylinderGeometry(2.05, 2.05, 5.55, 28, 1, true, Math.PI * 0.65, Math.PI * 0.7),
                 new THREE.MeshToonMaterial({ color: floorColorHex, gradientMap: gradMap, side: THREE.DoubleSide })
             );
-            backWall.position.set(0, 0.4, 0);
+            backWall.position.set(0, 0.78, 0);
             booth.add(backWall);
 
             // Vanity mirror frame with warm bulbs on back wall
@@ -1498,7 +1498,7 @@
 
             const canopyGeo = new THREE.CylinderGeometry(2.12, 2.18, 0.36, 32);
             const canopy = new THREE.Mesh(canopyGeo, new THREE.MeshToonMaterial({ color: accentHex, gradientMap: gradMap }));
-            canopy.position.set(0, 2.82, 0);
+            canopy.position.set(0, 3.62, 0);
             canopy.add(createCartoonOutline(canopyGeo, 1.03));
             booth.add(canopy);
 
@@ -1590,11 +1590,11 @@
             const aspect = window.innerWidth / window.innerHeight;
             camera.aspect = aspect;
             if (aspect < 1.35) {
-                camera.position.set(-0.35, 0.35, 12.6);
-                camera.lookAt(-0.35, 0.15, 0);
+                camera.position.set(-0.35, 0.65, 13.0);
+                camera.lookAt(-0.35, 0.45, 0);
             } else {
-                camera.position.set(-0.35, 0.32, 9.8);
-                camera.lookAt(-0.35, 0.15, 0);
+                camera.position.set(-0.35, 0.62, 10.2);
+                camera.lookAt(-0.35, 0.45, 0);
             }
             camera.updateProjectionMatrix();
         }
